@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NexaBuild AI</title>
+<style>
+body{margin:0;background:#0b1020;color:white;font-family:Arial;text-align:center}
+header{padding:20px;background:#151d32;color:#8b9dff;font-size:24px;font-weight:bold}
+main{max-width:700px;margin:60px auto;padding:20px}
+textarea{width:95%;height:120px;padding:12px;background:#151d32;color:white;border:1px solid #6878ff;border-radius:10px;font-size:16px}
+button{margin:12px;padding:14px 22px;background:#6878ff;color:white;border:0;border-radius:8px;font-size:16px}
+#status{color:#b8c2dc}
+</style>
+</head>
+<body>
+<header>⚡ NexaBuild AI</header>
+<main>
+<h1>Build Smarter with AI</h1>
+<p>Describe the website or app you want to build.</p>
+<textarea id="idea" placeholder="Create a modern hotel website..."></textarea><br>
+<button onclick="generate()">Generate Project</button>
+<p id="status">Ready to build.</p>
+</main>
+<script>
+async function generate(){
+const idea=document.getElementById('idea').value.trim();
+const status=document.getElementById('status');
+if(!idea){status.textContent='Please enter your idea first.';return;}
+status.textContent='Connecting to AI...';
+try{
+const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:idea})});
+const d=await r.json();
+status.textContent=r.ok?(d.code||d.output||d.message||JSON.stringify(d)):'Error: '+(d.error||'Check backend configuration');
+}catch(e){status.textContent='Backend not connected yet. Check the Vercel API setup.';}
+}
+</script>
+</body>
+</html>
