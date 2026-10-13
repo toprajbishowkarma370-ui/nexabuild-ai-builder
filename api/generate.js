@@ -40,27 +40,13 @@ module.exports = async function handler(req, res) {
         'X-Title': 'NexaBuild AI Builder'
       },
       body: JSON.stringify({
-      model: "openrouter/auto:free",
-      
-        
-    
-      
-                   body: JSON.stringify({
-      model: "openrouter/auto:free",
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert web developer. Return ONLY valid JSON with a key "code" containing the full HTML string with CSS in <style> and JS in <script> tags. Do not wrap code in markdown block or text.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    })
-                     
-        
-
+        model: "openrouter/auto:free",
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert web developer. Always output ONLY a complete, valid single-page HTML document containing CSS in <style> tags and JavaScript inside <script> tags. Do not wrap code in markdown tags like ```html or explain anything.'
+          },
+          {
             role: 'user',
             content: prompt
           }
@@ -81,3 +67,4 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 };
+
