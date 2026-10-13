@@ -45,12 +45,22 @@ module.exports = async function handler(req, res) {
         
     
       
-       messages: [
-          {
-            role: 'system',
-            content: 'You are an expert web designer. Return fully functional single-page HTML/CSS/JS code matching the user prompt. Return ONLY valid JSON with a "code" property containing the generated website code.'
-          },
-          {
+                   body: JSON.stringify({
+      model: "openrouter/auto:free",
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert web developer. Return ONLY valid JSON with a key "code" containing the full HTML string with CSS in <style> and JS in <script> tags. Do not wrap code in markdown block or text.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    })
+                     
+        
+
             role: 'user',
             content: prompt
           }
