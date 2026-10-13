@@ -1,112 +1,69 @@
 module.exports = async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({
-      success: false,
-      error: "POST method required."
-    });
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
 
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-
-  if (!apiKey) {
-    return res.status(503).json({
-      success: false,
-      error: "Missing DEEPSEEK_API_KEY in Vercel settings."
-    });
-  }
-
-  const prompt =
-    typeof req.body?.prompt === "string"
-      ? req.body.prompt.trim()
-      : "";
-
-  if (!prompt || prompt.length > 5000) {
-    return res.status(400).json({
-      success: false,
-      error: "Please enter a valid website description."
-    });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const response = await fetch(
-      "https://api.deepseek.com/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-        model: "deepseek/deepseek-r1:free"
-            
-          messages: [
-            {
-              role: "system",
-              content: "Generate a complete HTML website with embedded CSS and JavaScript. Return only HTML, without Markdown fences."
-            },
-            {
-              role: "user",
-              content: prompt
-            }
-          ],
-          stream: false,
-          max_tokens: 4000
-        })
-      }
-    );
+    const { prompt } = req.body;
 
-    if (!response.ok) {
-      console.error("DeepSeek HTTP status:", response.status);
-
-      const messages = {
-        401: "API key authentication failed. Check your key.",
-        402: "DeepSeek account billing or balance issue.",
-        403: "DeepSeek API access denied.",
-        429: "Too many requests. Try again later."
-      };
-
-      return res.status(502).json({
-        success: false,
-        error: messages[response.status] ||
-          "DeepSeek API request failed. Check Vercel logs."
-      });
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt is required' });
     }
+
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: 'API key is missing in server configuration' });
+    }
+
+    // OpenRouter API Call
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey.trim()}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://nexabuild-ai-builder-f55j.vercel.app',
+        'X-Title': 'NexaBuild AI Builder'
+      },
+      body: JSON.stringify({
+        model: 'deepseek/deepseek-r1:free',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert web designer. Return fully functional single-page HTML/CSS/JS code matching the user prompt. Return ONLY valid JSON with a "code" property containing the generated website code.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      })
+    });
 
     const data = await response.json();
-    let html = data.choices?.[0]?.message?.content?.trim();
 
-    if (!html) {
-      return res.status(502).json({
-        success: false,
-        error: "AI returned an empty response."
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data.error?.message || 'Failed to fetch from OpenRouter'
       });
     }
 
-    html = html
-      .replace(/^```html\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/, "")
-      .trim();
-
-    if (!/<html[\s>]/i.test(html) &&
-        !/<!doctype html/i.test(html)) {
-      return res.status(502).json({
-        success: false,
-        error: "AI did not return complete HTML. Try again."
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      html
-    });
-
+    return res.status(200).json(data);
   } catch (error) {
-    console.error("Generation error:", error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: "Server error. Please try again."
-    });
+    return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
-}
+};
