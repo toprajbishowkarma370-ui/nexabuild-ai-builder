@@ -38,7 +38,8 @@ export default async function handler(req, res) {
           "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: "deepseek-flash",
+        model: "deepseek/deepseek-r1:free"
+            
           messages: [
             {
               role: "system",
