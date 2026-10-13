@@ -40,9 +40,10 @@ module.exports = async function handler(req, res) {
         'X-Title': 'NexaBuild AI Builder'
       },
       body: JSON.stringify({
-      model: "meta-llama/llama-3.3-70b-instruct:free",
-        
-        messages: [
+      model: "google/gemini-2.0-flash-lite-001:free",
+  
+       
+       messages: [
           {
             role: 'system',
             content: 'You are an expert web designer. Return fully functional single-page HTML/CSS/JS code matching the user prompt. Return ONLY valid JSON with a "code" property containing the generated website code.'
