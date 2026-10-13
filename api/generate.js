@@ -40,10 +40,10 @@ module.exports = async function handler(req, res) {
         'X-Title': 'NexaBuild AI Builder'
       },
       body: JSON.stringify({
-      model: "qwen/qwen-2.5-coder-32b-instruct:free",
-        
+      model: "openrouter/auto:free",
       
-
+        
+    
       
        messages: [
           {
