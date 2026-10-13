@@ -1,5 +1,4 @@
 module.exports = async function handler(req, res) {
-  // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -30,13 +29,12 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'API key is missing in server configuration' });
     }
 
-    // OpenRouter API Call
-    const response = await fetch('[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey.trim()}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': '[https://nexabuild-ai-builder-f55j.vercel.app](https://nexabuild-ai-builder-f55j.vercel.app)',
+        'HTTP-Referer': 'https://nexabuild-ai-builder-f55j.vercel.app',
         'X-Title': 'NexaBuild AI Builder'
       },
       body: JSON.stringify({
@@ -62,19 +60,13 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // Strict HTML Extraction Logic
     if (data.choices && data.choices[0] && data.choices[0].message) {
       let rawContent = data.choices[0].message.content || '';
-
-      // Strip markdown code fences if present
       rawContent = rawContent.replace(/```html?/gi, '').replace(/```/g, '').trim();
-
-      // Ensure content starts with valid HTML tag if enclosed with text
       const htmlStartMatch = rawContent.match(/<!DOCTYPE html|<html/i);
       if (htmlStartMatch) {
         rawContent = rawContent.substring(htmlStartMatch.index);
       }
-
       data.choices[0].message.content = rawContent;
     }
 
