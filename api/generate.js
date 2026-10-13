@@ -31,12 +31,12 @@ module.exports = async function handler(req, res) {
     }
 
     // OpenRouter API Call
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey.trim()}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://nexabuild-ai-builder-f55j.vercel.app',
+        'HTTP-Referer': '[https://nexabuild-ai-builder-f55j.vercel.app](https://nexabuild-ai-builder-f55j.vercel.app)',
         'X-Title': 'NexaBuild AI Builder'
       },
       body: JSON.stringify({
@@ -44,7 +44,7 @@ module.exports = async function handler(req, res) {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert web developer. Always output ONLY a complete, valid single-page HTML document containing CSS in <style> tags and JavaScript inside <script> tags. Do not wrap code in markdown block or text.'
+            content: 'You are a web generator. Output strictly raw HTML/CSS code inside a valid single HTML file. Start directly with <!DOCTYPE html> or <html>. Do not use markdown backticks, explanations, or quotes.'
           },
           {
             role: 'user',
@@ -62,11 +62,20 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // Strip Markdown code blocks if AI surrounds code with ```html ... ```
+    // Strict HTML Extraction Logic
     if (data.choices && data.choices[0] && data.choices[0].message) {
-      let content = data.choices[0].message.content || '';
-      content = content.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-      data.choices[0].message.content = content;
+      let rawContent = data.choices[0].message.content || '';
+
+      // Strip markdown code fences if present
+      rawContent = rawContent.replace(/```html?/gi, '').replace(/```/g, '').trim();
+
+      // Ensure content starts with valid HTML tag if enclosed with text
+      const htmlStartMatch = rawContent.match(/<!DOCTYPE html|<html/i);
+      if (htmlStartMatch) {
+        rawContent = rawContent.substring(htmlStartMatch.index);
+      }
+
+      data.choices[0].message.content = rawContent;
     }
 
     return res.status(200).json(data);
@@ -74,5 +83,3 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 };
-
-
