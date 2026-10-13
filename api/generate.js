@@ -40,9 +40,10 @@ module.exports = async function handler(req, res) {
         'X-Title': 'NexaBuild AI Builder'
       },
       body: JSON.stringify({
-      model: "google/gemini-2.0-flash-lite-001:free",
-  
-       
+      model: "google/gemini-2.0-pro-exp-02-05:free",
+      
+
+      
        messages: [
           {
             role: 'system',
