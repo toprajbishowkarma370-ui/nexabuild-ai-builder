@@ -44,7 +44,7 @@ module.exports = async function handler(req, res) {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert web developer. Always output ONLY a complete, valid single-page HTML document containing CSS in <style> tags and JavaScript inside <script> tags. Do not wrap code in markdown tags like ```html or explain anything.'
+            content: 'You are an expert web developer. Always output ONLY a complete, valid single-page HTML document containing CSS in <style> tags and JavaScript inside <script> tags. Do not wrap code in markdown block or text.'
           },
           {
             role: 'user',
@@ -62,9 +62,17 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // Strip Markdown code blocks if AI surrounds code with ```html ... ```
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      let content = data.choices[0].message.content || '';
+      content = content.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+      data.choices[0].message.content = content;
+    }
+
     return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 };
+
 
