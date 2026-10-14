@@ -1,26 +1,47 @@
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "POST method required" });
+    return res.status(405).json({
+      success: false,
+      error: "POST method required"
+    });
   }
 
   const apiKey = process.env.DEEPSEEK_API_KEY;
 
   if (!apiKey || !apiKey.trim()) {
     return res.status(500).json({
+      success: false,
       error: "DEEPSEEK_API_KEY is missing in Vercel settings."
     });
   }
 
+  const body = req.body || {};
   const prompt =
-    typeof req.body?.prompt === "string"
-      ? req.body.prompt.trim()
-      : "";
+    typeof body.prompt === "string" ? body.prompt.trim() : "";
+  const currentHtml =
+    typeof body.currentHtml === "string" ? body.currentHtml : "";
 
   if (!prompt || prompt.length > 5000) {
     return res.status(400).json({
+      success: false,
       error: "Enter a valid prompt (maximum 5000 characters)."
     });
   }
+
+  if (currentHtml.length > 100000) {
+    return res.status(400).json({
+      success: false,
+      error: "Current HTML is too large to edit."
+    });
+  }
+
+  const hasCurrent = currentHtml.trim().length > 0;
+
+  const systemMessage = hasCurrent
+    ? "You are NexaBuild AI, editing an existing website. Apply only the user's requested changes. Preserve unrelated sections, styling, and functionality. Return the complete updated HTML document, with embedded CSS and JavaScript. Do not use Markdown fences or explanations.\n\nCURRENT WEBSITE HTML:\n" +
+      currentHtml
+    : "You are NexaBuild AI, a professional website generator. Return one complete HTML document with embedded CSS and JavaScript. Start with <!DOCTYPE html>. Do not use Markdown fences or explanations.";
 
   try {
     const response = await fetch(
@@ -36,10 +57,12 @@ module.exports = async function handler(req, res) {
           messages: [
             {
               role: "system",
-              content:
-                "You are NexaBuild AI, a professional website generator. Return one complete HTML document with embedded CSS and JavaScript. Start with <!DOCTYPE html>. Do not use Markdown fences or explanations."
+              content: systemMessage
             },
-            { role: "user", content: prompt }
+            {
+              role: "user",
+              content: prompt
+            }
           ],
           stream: false,
           max_tokens: 8000
@@ -60,7 +83,9 @@ module.exports = async function handler(req, res) {
       };
 
       return res.status(response.status).json({
-        error: messages[response.status] ||
+        success: false,
+        error:
+          messages[response.status] ||
           data.error?.message ||
           "Generation failed."
       });
@@ -70,6 +95,7 @@ module.exports = async function handler(req, res) {
 
     if (!html) {
       return res.status(502).json({
+        success: false,
         error: "AI returned an empty response."
       });
     }
@@ -83,21 +109,23 @@ module.exports = async function handler(req, res) {
 
     if (start === -1) {
       return res.status(502).json({
+        success: false,
         error: "AI did not return a complete HTML document."
       });
     }
 
     html = html.slice(start);
 
-    data.choices[0].message.content = html;
-
-    return res.status(200).json(data);
+    return res.status(200).json({
+      success: true,
+      html
+    });
   } catch (error) {
     console.error("Generation error:", error.message);
 
     return res.status(500).json({
+      success: false,
       error: "Server error while generating the website."
     });
   }
 };
-
