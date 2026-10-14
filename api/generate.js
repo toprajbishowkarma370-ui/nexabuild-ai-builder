@@ -1,4 +1,3 @@
-
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "POST method required" });
@@ -25,7 +24,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const response = await fetch(
-      "https://api.deepseek.com/chat/completions",
+      "https://openrouter.ai/api/v1/chat/completions",
       {
         method: "POST",
         headers: {
@@ -33,7 +32,7 @@ module.exports = async function handler(req, res) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "deepseek-flash",
+          model: "deepseek/deepseek-chat",
           messages: [
             {
               role: "system",
@@ -42,7 +41,6 @@ module.exports = async function handler(req, res) {
             },
             { role: "user", content: prompt }
           ],
-          thinking: { type: "disabled" },
           stream: false,
           max_tokens: 8000
         })
@@ -52,19 +50,19 @@ module.exports = async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("DeepSeek API error:", response.status, data);
+      console.error("OpenRouter API error:", response.status, data);
 
       const messages = {
-        401: "DeepSeek API key is invalid or unauthorized.",
-        402: "Check DeepSeek account balance or billing.",
-        403: "DeepSeek API access denied.",
+        401: "API key is invalid or unauthorized.",
+        402: "Check account balance or billing.",
+        403: "API access denied.",
         429: "Rate limit reached. Try again later."
       };
 
       return res.status(response.status).json({
         error: messages[response.status] ||
           data.error?.message ||
-          "DeepSeek generation failed."
+          "Generation failed."
       });
     }
 
@@ -72,7 +70,7 @@ module.exports = async function handler(req, res) {
 
     if (!html) {
       return res.status(502).json({
-        error: "DeepSeek returned an empty response."
+        error: "AI returned an empty response."
       });
     }
 
@@ -102,3 +100,4 @@ module.exports = async function handler(req, res) {
     });
   }
 };
+
