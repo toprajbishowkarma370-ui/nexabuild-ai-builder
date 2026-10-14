@@ -78,8 +78,26 @@
   #status.success { display: block; background: rgba(53,192,122,.08); border-color: rgba(53,192,122,.4); color: var(--success); }
   #status.error   { display: block; background: rgba(255,93,93,.08);  border-color: rgba(255,93,93,.4);  color: var(--error); }
 
+  .mode-row {
+    display: flex; gap: 8px; margin-bottom: 10px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px;
+  }
+  .mode-row label {
+    flex: 1; margin: 0; padding: 8px 10px; border-radius: 8px;
+    font-size: 14px; color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    user-select: none;
+  }
+  .mode-row input { display: none; }
+  .mode-row input:checked + span { color: var(--text); }
+  .mode-row label:has(input:checked) {
+    background: var(--accent); color: #fff;
+  }
+  .mode-row label:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+
   .preview-wrap { display: flex; flex-direction: column; gap: 8px; }
-  .preview-head { display: flex; justify-content: space-between; align-items: center; }
+  .preview-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
   .preview-head h2 { margin: 0; font-size: 15px; color: var(--muted); font-weight: 600; }
 
   #preview {
@@ -94,12 +112,23 @@
 
 <header>
   <h1><span class="dot"></span> NexaBuild AI Builder</h1>
-  <p>Describe a website. Generate it. Preview, download, or copy the result.</p>
+  <p>Create a new website, or edit the one you just generated.</p>
 </header>
 
 <main>
   <section class="card">
-    <label for="prompt">Describe the website you want</label>
+    <div class="mode-row" role="radiogroup" aria-label="Mode">
+      <label>
+        <input type="radio" name="mode" id="modeCreate" value="create" checked />
+        <span>Create New</span>
+      </label>
+      <label id="editModeLabel">
+        <input type="radio" name="mode" id="modeEdit" value="edit" disabled />
+        <span>Edit Existing</span>
+      </label>
+    </div>
+
+    <label for="prompt" id="promptLabel">Describe the new website you want</label>
     <textarea id="prompt" placeholder="e.g. A modern landing page for a coffee shop with a hero section, menu, and contact form."></textarea>
 
     <div class="actions">
@@ -132,15 +161,18 @@
 (function () {
   "use strict";
 
-  var promptEl    = document.getElementById("prompt");
-  var statusEl    = document.getElementById("status");
-  var previewEl   = document.getElementById("preview");
-  var generateBtn = document.getElementById("generateBtn");
-  var downloadBtn = document.getElementById("downloadBtn");
-  var copyBtn     = document.getElementById("copyBtn");
+  var promptEl     = document.getElementById("prompt");
+  var promptLabel  = document.getElementById("promptLabel");
+  var statusEl     = document.getElementById("status");
+  var previewEl    = document.getElementById("preview");
+  var generateBtn  = document.getElementById("generateBtn");
+  var downloadBtn  = document.getElementById("downloadBtn");
+  var copyBtn      = document.getElementById("copyBtn");
+  var modeCreate   = document.getElementById("modeCreate");
+  var modeEdit     = document.getElementById("modeEdit");
 
-  // Single source of truth for the latest generated HTML.
-  var latestHtml = "";
+  // Single source of truth for the latest generated or edited HTML.
+  var currentHtml = "";
 
   function setStatus(message, kind) {
     statusEl.textContent = message || "";
@@ -149,7 +181,9 @@
 
   function setLoading(isLoading) {
     generateBtn.disabled = isLoading;
-    generateBtn.textContent = isLoading ? "Generating…" : "Generate";
+    generateBtn.textContent = isLoading
+      ? (modeEdit.checked ? "Editing…" : "Generating…")
+      : (modeEdit.checked ? "Apply Edit" : "Generate");
   }
 
   function setButtonsEnabled(enabled) {
@@ -157,21 +191,45 @@
     copyBtn.disabled = !enabled;
   }
 
+  function refreshModeUI() {
+    var editing = modeEdit.checked;
+    promptLabel.textContent = editing
+      ? "Describe the change to apply to the current website"
+      : "Describe the new website you want";
+    promptEl.placeholder = editing
+      ? "e.g. Change the header background to blue and add a contact section."
+      : "e.g. A modern landing page for a coffee shop with a hero section, menu, and contact form.";
+    generateBtn.textContent = editing ? "Apply Edit" : "Generate";
+  }
+
+  modeCreate.addEventListener("change", refreshModeUI);
+  modeEdit.addEventListener("change", refreshModeUI);
+
   function generate() {
     var idea = (promptEl.value || "").trim();
     if (!idea) {
-      setStatus("Please describe the website you want.", "error");
+      setStatus("Please enter a prompt.", "error");
       promptEl.focus();
       return;
     }
 
+    var editing = modeEdit.checked;
+    if (editing && !currentHtml) {
+      setStatus("Nothing to edit yet. Generate a website first.", "error");
+      return;
+    }
+
     setLoading(true);
-    setStatus("Generating…", "loading");
+    setStatus(editing ? "Applying edit…" : "Generating…", "loading");
+
+    var body = editing
+      ? { prompt: idea, currentHtml: currentHtml }
+      : { prompt: idea };
 
     fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: idea })
+      body: JSON.stringify(body)
     })
       .then(function (res) {
         return res.text().then(function (raw) {
@@ -190,10 +248,16 @@
         });
       })
       .then(function (html) {
-        latestHtml = html;
-        previewEl.srcdoc = latestHtml;
+        currentHtml = html;
+        previewEl.srcdoc = currentHtml;
         setButtonsEnabled(true);
-        setStatus("Done. Your website is ready below.", "success");
+        modeEdit.disabled = false;
+        setStatus(
+          editing
+            ? "Edit applied. Preview updated below."
+            : "Done. Your website is ready below.",
+          "success"
+        );
       })
       .catch(function (err) {
         setStatus("Error: " + (err && err.message ? err.message : String(err)), "error");
@@ -213,12 +277,12 @@
   });
 
   downloadBtn.addEventListener("click", function () {
-    if (!latestHtml) {
+    if (!currentHtml) {
       setStatus("Nothing to download yet.", "error");
       return;
     }
     try {
-      var blob = new Blob([latestHtml], { type: "text/html" });
+      var blob = new Blob([currentHtml], { type: "text/html" });
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
       a.href = url;
@@ -234,7 +298,7 @@
   });
 
   copyBtn.addEventListener("click", function () {
-    if (!latestHtml) {
+    if (!currentHtml) {
       setStatus("Nothing to copy yet.", "error");
       return;
     }
@@ -254,21 +318,23 @@
     }
 
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(latestHtml)
+      navigator.clipboard.writeText(currentHtml)
         .then(function () { setStatus("Code copied to clipboard.", "success"); })
         .catch(function () {
-          if (fallbackCopy(latestHtml)) {
+          if (fallbackCopy(currentHtml)) {
             setStatus("Code copied to clipboard.", "success");
           } else {
             setStatus("Copy failed. Your browser blocked clipboard access.", "error");
           }
         });
-    } else if (fallbackCopy(latestHtml)) {
+    } else if (fallbackCopy(currentHtml)) {
       setStatus("Code copied to clipboard.", "success");
     } else {
       setStatus("Copy failed. Your browser blocked clipboard access.", "error");
     }
   });
+
+  refreshModeUI();
 })();
 </script>
 
